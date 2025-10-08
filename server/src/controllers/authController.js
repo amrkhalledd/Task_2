@@ -31,7 +31,38 @@ const loginSchema = Joi.object({
 
 // TODO: implement login function
 export async function login(req, res, next) {
- 
+ try {
+        // Validate request body
+        const { error, value } = loginSchema.validate(req.body);
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
+        }
+
+        const { email, password } = value;
+
+        // Find user by email
+        const user = await User.findOne({ email }).select('+password');
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        // Verify password
+        const isPasswordValid = await user.comparePassword(password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        // Generate token
+        const token = signToken(user);
+
+        // Return user data and token
+        res.json({
+            user: publicUser(user),
+            token
+        });
+    } catch (error) {
+        next(error);
+    }
 }
 
 export async function me(req, res) {
